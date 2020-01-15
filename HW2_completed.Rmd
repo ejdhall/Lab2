@@ -1,0 +1,132 @@
+---
+title: "Homework 2"
+author: "Evan Hall"
+date: "01/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Lab2/")
+```
+
+```{r Load packages, message=FALSE, warning=FALSE, include=FALSE, results='hide'}
+library(tidyverse)
+library(readxl)
+library(broom)
+library(cowplot)
+set.seed(7)
+```
+
+# Question 1
+Import the Lab2 data file, name the resulting data frame hw2_df. What are the dimensions (number of rows and columns) of this data frame?
+```{r}
+hw2_df <- read_delim(file = "raw_data/Lab2_data.txt", 
+                        delim = "\t", escape_double = FALSE, trim_ws = TRUE, na=c("NA"),
+                        col_types = list())
+hw2_df
+dim(hw2_df) # 4422 16
+nrow(hw2_df) # 4422
+ncol(hw2_df) # 16
+```
+
+
+# Question 2
+Filter the hw2_df data frame for data from Fall 2018, only include study weeks 1 and 3, subset for BRMPS, drop any data from students that did not consume the full quantity of the supplement, or samples that are not within the weight range (0.1 - 1.0 grams). Keep columns with participant & sample data, and butyrate measurements. Hint: use the accessor functions to identify column and variable names. Name the resulting data frame hw2_f18. 
+```{r}
+hw2_f18 <- hw2_df %>% filter(semester == "Fall2018",
+                  study_week == "week1" | study_week == "week3",
+                  supplement_consumed == "BRMPS",
+                  quantity_compliant == "yes", 
+                  sample_weight_g < 1.0 & sample_weight_g > 0.1) %>%
+select(participant_id, sample_id, study_week, semester, use_data,quantity_compliant, frequency,supplement_consumed,butyrate_mM,scfa_notes)
+hw2_f18
+```
+
+Repeat the filtering and subsetting above for students from Winter 2019. Name the resulting data frame hw2_w19. 
+```{r}
+hw2_w19 <- hw2_df %>% filter(semester == "Winter2019",
+                  study_week == "week1" | study_week == "week3",
+                  supplement_consumed == "BRMPS",
+                  quantity_compliant == "yes", 
+                  sample_weight_g < 1.0 & sample_weight_g > 0.1) %>%
+select(participant_id, sample_id, study_week, semester, use_data,quantity_compliant, frequency,supplement_consumed,butyrate_mM,scfa_notes)
+hw2_w19
+```
+
+Which semester contains more individual students?
+```{r}
+n_distinct(hw2_f18$participant_id)
+n_distinct(hw2_w19$participant_id)
+# The winter semester has more individual students because by comparison is has more rows than fall, 26 < 40. 
+```
+
+
+# Question 3
+Import the question3_data file, complete the following as one long series of commands using pipes: 
+
+* Convert measurements from US Customary to metric units (1 kg = 2.205 pounds, 1 m = 35.274 inches)
+* Round participant height and weight to 0 decimal positions
+* Subset for samples within the weight limits (0.1 - 1.0 grams)
+* Round SCFA concentrations to 2 decimal positions
+* Exclude samples that were not frozen within 24 hours
+* Drop any intermediate columns used for calculations 
+
+Name the resulting data frame hw2_q3. What are the dimensions of the resulting data frame? 
+```{r}
+hw2_q3_data <- read_delim(file = "raw_data/question3_data.txt", 
+                        delim = "\t", escape_double = FALSE, trim_ws = TRUE, na=c("NA"),
+                        col_types = list())
+hw2_q3_data
+hw2_q3 <- hw2_q3_data %>% 
+  mutate(ht_m = ht_in / 35.274, 
+         wt_kg = wt_lbs / 2.205, 
+         ht_m = round(ht_m, digits = 0), 
+        wt_kg = round(wt_kg, digits = 0)) %>% 
+          
+    filter(sample_wt_g > 0.1 & sample_wt_g < 1.0) %>% 
+    mutate(ace_fake = round(ace_fake, digits = 2), but_fake = round(but_fake, digits = 2), pro_fake = round(pro_fake, digits = 2)) %>% 
+    filter(notes != "frozen >24hrs") %>%
+    select(-ht_in, -wt_lbs)
+hw2_q3
+  
+
+```
+
+
+# Question 4
+
+Using the hw2_q3 data frame; apply the group_by() and summarise() functions to determine the mean concentration (in mmol/kg) of each of the three SCFAs (acetate, butyrate, propionate) for each participant, during each week of the study. Use the mutate() function to calculate the total SCFA concentration for each participant, during each week of the study. Drop any intermediate columns used for calculations. Name the resulting data frame hw2_q4. What are the dimensions of the resulting data frame?
+```{r}
+hw2_q4 <- hw2_q3 %>%
+  group_by(study_weeks, participant_id) %>%
+  summarise(mean_ace = mean(ace_fake, na.rm = TRUE), 
+            mean_but = mean(but_fake, na.rm = TRUE), 
+            mean_pro = mean(pro_fake, na.rm = TRUE)) %>%
+  mutate(total_SCFA_concentration = sum(mean_ace + mean_but + mean_pro)) %>%
+  select(-mean_ace, -mean_but, -mean_pro)
+hw2_q4
+
+```
+
+
+# Question 5
+
+Export/save the data frame created in Question 4. Processed/curated data frames should be uploaded to 'curated_data' directory on your GitHub Page.
+```{r}
+write_delim(hw2_q4, path = "curated_data/hw2_q4_data.txt", delim = "\t")
+```
+
+# Question 6
+Complete writing assignment assigned in lecture 1 in a Word Document. Submit file to HW2 assignment on Canvas. 
+
+
+# Extra credit
+
+Can you conduct the analyses in Questions 3, 4, 5 as one long series of pipes (from import to export, without creating any intermediate data frames)?
+```{r}
+
+```
+
+-----
+end
